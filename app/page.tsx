@@ -18,10 +18,12 @@ export default function Page() {
 
   const saveLuckyFrame = useCallback(() => {
     sdk.actions.addFrame()
+    setShowAddFrameModal(false);
   }, [])
 
   const closeLuckyFrame = useCallback(() => {
     sdk.actions.close()
+    setShowAddFrameModal(false);
   }, [])
 
   const buyLuckyToken = useCallback(() => {
@@ -44,7 +46,7 @@ export default function Page() {
   });
 
   useEffect(() => {
-    if (balance as bigint < parseEther("500000")) {
+    if (balance as bigint < parseEther("1000000000")) {
       setIsZeroLuckyBalance(true);
     }
   }, [balance]);
@@ -52,8 +54,6 @@ export default function Page() {
   useEffect(() => {
     if (added === false) {
       setShowAddFrameModal(true);
-    } else {
-      setShowAddFrameModal(false);
     }
   }, [added]);
 
