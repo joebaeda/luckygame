@@ -38,6 +38,8 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   const [showBuyTickerResult, setShowBuyTicketResult] = useState(false)
   const [showBuyTicketError, setShowBuyTicketError] = useState(false)
   const [calculatedValue, setCalculatedValue] = useState<string | null>(null)
+  const [freeSpinPerDay, setFreeSpinPerDay] = useState("")
+  const [extraSpinPerDay, setExtraSpinPerDay] = useState("")
 
   const showProfile = useCallback(() => {
     sdk.actions.viewProfile({ fid })
@@ -45,8 +47,8 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const openBaseScan = useCallback((proofHash: any) => {
-      sdk.actions.openUrl(`https://basescan.org/tx/${proofHash}`)
-    }, [])
+    sdk.actions.openUrl(`https://basescan.org/tx/${proofHash}`)
+  }, [])
 
   // wagmi hooks
   const chainId = useChainId()
@@ -221,6 +223,16 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
     fetchTokenPrice()
   }, [totalPrizePool])
 
+  useEffect(() => {
+    if (freeSpin && playerSpin) {
+      const freePlay = String(Number(freeSpin) - Number(playerSpin?.[1]))
+      const playerPlay = String(playerSpin?.[2])
+      setFreeSpinPerDay(freePlay)
+      setExtraSpinPerDay(playerPlay)
+    }
+
+  }, [freeSpin, playerSpin])
+
   return (
     <div className="relative bg-[#17101f] p-4 flex flex-col items-center justify-center min-h-screen z-20">
       {/* Background Animation */}
@@ -251,26 +263,36 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       </div>
 
       {/* Reels */}
-      <div className="fixed p-4 bottom-1/5 w-full flex flex-row space-x-4 justify-center items-center">
-        {reels.map((symbol, reelIndex) => (
-          <div key={reelIndex} className="w-20 h-20 bg-yellow-400 rounded-lg overflow-hidden shadow-inner relative">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-4xl">{symbol}</span>
+      <div className="fixed p-4 top-52 w-full flex flex-row space-x-4 justify-center items-center">
+        {reels.map((symbol, reelIndex) => {
+          // Define different rotation values for each box
+          const rotationValues = [12, -12, 6, -6]; // Customize these values
+          const rotation = rotationValues[reelIndex % rotationValues.length]; // Ensure it loops if more than 4 boxes
+
+          return (
+            <div
+              key={reelIndex}
+              className="w-20 h-20 bg-yellow-400 rounded-lg overflow-hidden shadow-inner relative"
+              style={{ transform: `rotate(${rotation}deg)` }} // Apply rotation dynamically
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-4xl">{symbol}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Player Spin */}
-      <div className="fixed p-4 bottom-24 w-full space-y-2 flex flex-col justify-start items-start text-white text-xl font-extrabold">
+      <div className="fixed p-4 bottom-28 w-full space-y-2 flex flex-col justify-start items-start text-white text-xl font-extrabold">
         <p className="flex justify-between w-full">
-          Daily Spin: <span>{String(Number(freeSpin) - Number(playerSpin?.[1]))}</span>
+          Daily Spin: <span>{freeSpinPerDay || "0"}</span>
         </p>
         <p className="flex justify-between w-full">
-          Extra Spin: <span>{String(playerSpin?.[2])}</span>
+          Extra Spin: <span>{extraSpinPerDay || "0"}</span>
         </p>
         <p className="flex justify-between w-full">
-          Prize Pool: <span>{String(calculatedValue)}</span>
+          Prize Pool: <span>{String(calculatedValue || "0")}</span>
         </p>
       </div>
 
@@ -298,9 +320,9 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
         >
           <div className="w-full max-w-[384px] bg-yellow-600 rounded-2xl p-6 shadow-lg">
             <p className="text-white text-center text-2xl mb-6">{result}</p>
-              <button onClick={() => openBaseScan(spinHash)} className="w-full bg-pink-900 text-white px-4 py-2 rounded-xl hover:bg-pink-950 transition duration-300">
-                Proof
-              </button>
+            <button onClick={() => openBaseScan(spinHash)} className="w-full bg-pink-900 text-white px-4 py-2 rounded-xl hover:bg-pink-950 transition duration-300">
+              Proof
+            </button>
           </div>
         </div>
       )}
@@ -330,9 +352,9 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
               Hi {displayName}, You got {playerSpin?.[2]}X extra spin and 100% cashback in $LUCKY token has been sent to
               your wallet.
             </p>
-              <button onClick={() => openBaseScan(buyTicketHash)} className="w-full bg-pink-900 text-white px-4 py-2 rounded-xl hover:bg-pink-950 transition duration-300">
-                Proof
-              </button>
+            <button onClick={() => openBaseScan(buyTicketHash)} className="w-full bg-pink-900 text-white px-4 py-2 rounded-xl hover:bg-pink-950 transition duration-300">
+              Proof
+            </button>
           </div>
         </div>
       )}
