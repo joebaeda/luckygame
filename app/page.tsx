@@ -5,7 +5,7 @@ import { useViewer } from "./providers/FrameContextProvider";
 import sdk from "@farcaster/frame-sdk";
 import { useAccount, useReadContract } from "wagmi";
 import { luckyAbi, luckyAddress } from "@/lib/luckySlot";
-import { formatEther, parseEther } from "viem";
+import { formatEther } from "viem";
 import LuckySpin from "./components/LuckySpin";
 import { base } from "wagmi/chains";
 
@@ -46,10 +46,10 @@ export default function Page() {
   });
 
   useEffect(() => {
-    if (balance as bigint < parseEther("1000000000")) {
+    if (Number(balance as bigint) < Number(minHold as bigint)) {
       setIsZeroLuckyBalance(true);
     }
-  }, [balance]);
+  }, [balance, minHold]);
 
   useEffect(() => {
     if (added === false) {
@@ -87,21 +87,36 @@ export default function Page() {
       {isZeroLuckyBalance ? (
         <div className="fixed flex p-4 justify-center items-center inset-0 bg-gray-100">
           <div className="w-full max-w-[384px] bg-yellow-600 rounded-2xl justify-start items-start p-4 mx-auto flex flex-col space-y-5">
-          <h2 className="font-extrabold text-2xl">Hi {displayName} 👋</h2>
-          <p className="text-white text-lg mb-6">
-            To play this game you need {formatEther(minHold as bigint) || "0"} $LUCKY to hold in your wallet. Free to play but only for $LUCKY Token holders.
-          </p>
-          <button
-            onClick={buyLuckyToken}
-            className="w-full max-w-[384px] bg-purple-900 rounded-2xl text-white font-extrabold p-3 text-xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Buy $LUCKY
-          </button>
+
+            {/* GeckoTerminal Embed Chart */}
+            <div className="w-full h-64 mb-4">
+              <iframe
+                height="100%"
+                width="100%"
+                id="geckoterminal-embed"
+                title="GeckoTerminal Embed"
+                src="https://www.geckoterminal.com/base/pools/0x13dA08DD0e214239cd9550F7563BFefDa0052642?embed=1&info=0&swaps=0&grayscale=0&light_chart=0"
+                allow="clipboard-write"
+                allowFullScreen
+                className="rounded-lg"
+              ></iframe>
+            </div>
+
+            <h2 className="font-extrabold text-2xl">Hi {displayName} 👋</h2>
+            <p className="text-white text-lg mb-6">
+              To play this game you need {formatEther(minHold as bigint) || "0"} $LUCKY to hold in your wallet. Free to play but only for $LUCKY Token holders.
+            </p>
+            <button
+              onClick={buyLuckyToken}
+              className="w-full max-w-[384px] bg-purple-900 rounded-2xl text-white font-extrabold p-3 text-xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Buy $LUCKY
+            </button>
           </div>
         </div>
-        ) : (
-          <LuckySpin fid={fid} displayName={displayName as string} pfp={pfpUrl as string} />
-        )
+      ) : (
+        <LuckySpin fid={fid} displayName={displayName as string} pfp={pfpUrl as string} />
+      )
       }
 
     </main>
