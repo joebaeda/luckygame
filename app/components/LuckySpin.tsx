@@ -38,8 +38,6 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   const [showBuyTickerResult, setShowBuyTicketResult] = useState(false)
   const [showBuyTicketError, setShowBuyTicketError] = useState(false)
   const [calculatedValue, setCalculatedValue] = useState<string | null>(null)
-  const [freeSpinPerDay, setFreeSpinPerDay] = useState("")
-  const [extraSpinPerDay, setExtraSpinPerDay] = useState("")
 
   const showProfile = useCallback(() => {
     sdk.actions.viewProfile({ fid })
@@ -53,7 +51,12 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   // wagmi hooks
   const chainId = useChainId()
   const { address, isConnected } = useAccount()
-  const { data: spinHash, error: spinError, isSuccess: isSpinConfirmed, writeContract: writeSpin } = useWriteContract()
+  const {
+    data: spinHash,
+    error: spinError,
+    isSuccess: isSpinConfirmed,
+    writeContract: writeSpin
+  } = useWriteContract()
   const {
     data: buyTicketHash,
     error: buyTicketError,
@@ -91,42 +94,11 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
     args: [address as `0x${string}`],
   })
 
-  const { data: spinData, refetch } = useReadContract({
-    address: luckyAddress,
-    abi: luckyAbi,
-    chainId: base.id,
-    functionName: "getSpinResult",
-    args: [address as `0x${string}`],
-  })
-
-  // Start continuous slot animation
-  const startAnimation = useCallback(() => {
-    const animateReel = (reelIndex: number) => {
-      setReels((prevReels) => {
-        const newReels = [...prevReels]
-        newReels[reelIndex] = symbolArray[Math.floor(Math.random() * symbolArray.length)]
-        return newReels
-      })
-    }
-
-    const intervals = reels.map((_, index) => setInterval(() => animateReel(index), 50 + index * 50))
-
-    return () => intervals.forEach(clearInterval)
-  }, [reels])
-
-  // Stop animation and set final result
-  const stopAnimation = useCallback((finalNumbers: number[], isWinner: boolean) => {
-    setReels(finalNumbers.map((num) => symbolMap[num]))
-    setResult(isWinner ? "🎉 Jackpot! 🎉" : "🍀 Try again! 🍀")
-    setShowSpinResult(true)
-  }, [])
-
   // Function to start the spin
   const spin = async () => {
     if (!isConnected || chainId !== base.id) return
     setSpinning(true)
     setResult(null)
-    const stopAnimationFn = startAnimation()
 
     try {
       writeSpin({
@@ -136,23 +108,71 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
         functionName: "spin",
       })
 
-      setTimeout(() => {
-        refetch()
-      }, 3000)
     } catch (error) {
       console.error("Error spinning:", error)
-      stopAnimationFn()
+      setSpinning(false); // Stop spinning if transaction fails
     }
   }
 
-  // Effect to process spin result
+  // Slot Animation
   useEffect(() => {
-    if (isSpinConfirmed && spinData) {
-      const [numbers, isWinner] = spinData
-      stopAnimation(numbers.map(Number), isWinner)
-      setSpinning(false)
+    if (spinning) {
+      const animateReels = () => {
+        setReels((prevReels) =>
+          prevReels.map(() => symbolArray[Math.floor(Math.random() * symbolArray.length)])
+        );
+      };
+
+      const interval = setInterval(animateReels, 100);
+
+      return () => clearInterval(interval);
     }
-  }, [isSpinConfirmed, spinData, stopAnimation])
+  }, [spinning]);
+
+  // Call api to get spin new result
+  const fetchSpinResult = async (address: string) => {
+    try {
+      const response = await fetch(`/api/spinBy/${address}`);
+      if (!response.ok) throw new Error("Failed to fetch spin result");
+
+      const data = await response.json();
+      return data; // { numbers, isWinner, prizeAmount, protocolFee }
+    } catch (error) {
+      console.error("Error fetching spin result:", error);
+      return null;
+    }
+  };
+
+  // Get Result
+  useEffect(() => {
+    const getNewSpinData = async () => {
+      if (!isSpinConfirmed || !address) return;
+
+      // Add a delay before fetching the spin result
+      await new Promise((resolve) => setTimeout(resolve, 15000)) // 15 seconds delay
+
+      const newSpinData = await fetchSpinResult(address);
+
+      if (newSpinData) {
+
+        setSpinning(false); // Stop spinning animation when new data arrives
+        setReels(newSpinData.numbers.map((num: number) => symbolMap[num]));
+        setResult(newSpinData.isWinner ? "🎉 Jackpot! 🎉" : "🍀 Try again! 🍀");
+        setShowSpinResult(true);
+
+      }
+    };
+
+    getNewSpinData();
+  }, [address, isSpinConfirmed]);
+
+  // Set back to default
+  useEffect(() => {
+    if (showSpinResult === false) {
+      setReels(Array(4).fill(symbolArray[9]))
+    }
+  }, [showSpinResult])
+
 
   // Function to buy extra spin
   const buyExtraSpin = async () => {
@@ -180,7 +200,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   useEffect(() => {
     if (spinError) {
-      setShowBuyTicketError(true)
+      setShowSpinError(true)
     }
   }, [spinError])
 
@@ -222,16 +242,6 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
     fetchTokenPrice()
   }, [totalPrizePool])
-
-  useEffect(() => {
-    if (freeSpin && playerSpin) {
-      const freePlay = String(Number(freeSpin) - Number(playerSpin?.[1]))
-      const playerPlay = String(playerSpin?.[2])
-      setFreeSpinPerDay(freePlay)
-      setExtraSpinPerDay(playerPlay)
-    }
-
-  }, [freeSpin, playerSpin])
 
   return (
     <div className="relative bg-[#17101f] p-4 flex flex-col items-center justify-center min-h-screen z-20">
@@ -286,10 +296,10 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       {/* Player Spin */}
       <div className="fixed p-4 bottom-28 w-full space-y-2 flex flex-col justify-start items-start text-white text-xl font-extrabold">
         <p className="flex justify-between w-full">
-          Daily Spin: <span>{freeSpinPerDay || "0"}</span>
+          Daily Spin: <span>{String(playerSpin?.[1]) || "0"} / {freeSpin}</span>
         </p>
         <p className="flex justify-between w-full">
-          Extra Spin: <span>{extraSpinPerDay || "0"}</span>
+          Extra Spin: <span>{String(playerSpin?.[2]) || "0"} / {freeSpin}</span>
         </p>
         <p className="flex justify-between w-full">
           Prize Pool: <span>{String(calculatedValue || "0")}</span>
@@ -300,12 +310,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       <div className="fixed rounded-t-2xl flex justify-center items-center p-4 w-full bottom-0 bg-yellow-600">
         <button
           onClick={spin}
-          disabled={
-            !isConnected ||
-            chainId !== base.id ||
-            spinning ||
-            (Number(freeSpin) - Number(playerSpin?.[1]) === 0 && Number(playerSpin?.[2]) === 0)
-          }
+          disabled={!isConnected || chainId !== base.id || spinning || String(playerSpin?.[1]) === String(freeSpin) || String(playerSpin?.[1]) === String(freeSpin) && String(playerSpin?.[2]) === "0"}
           className="text-white text-center font-extrabold py-2 text-2xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {spinning ? "Spinning..." : "Let's Spin"}
@@ -313,13 +318,34 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       </div>
 
       {/* Spin Result */}
-      {showSpinResult && (
+      {showSpinResult && result && (
         <div
           onClick={() => setShowSpinResult(false)}
-          className="fixed inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-[#1a0e25] bg-opacity-95 flex items-center justify-center z-50 p-4"
         >
-          <div className="w-full max-w-[384px] bg-yellow-600 rounded-2xl p-6 shadow-lg">
-            <p className="text-white text-center text-2xl mb-6">{result}</p>
+          <div className="w-full max-w-[384px] bg-[#341e49] rounded-2xl p-6 shadow-lg">
+
+            <div className="w-full flex flex-row space-x-4 justify-center items-center">
+              {reels.map((symbol, reelIndex) => {
+                // Define different rotation values for each box
+                const rotationValues = [12, -12, 6, -6]; // Customize these values
+                const rotation = rotationValues[reelIndex % rotationValues.length]; // Ensure it loops if more than 4 boxes
+
+                return (
+                  <div
+                    key={reelIndex}
+                    className="w-20 h-20 bg-yellow-400 rounded-lg overflow-hidden shadow-inner relative"
+                    style={{ transform: `rotate(${rotation}deg)` }} // Apply rotation dynamically
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-4xl">{symbol}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="text-white text-center text-2xl my-6">{result}</p>
             <button onClick={() => openBaseScan(spinHash)} className="w-full bg-pink-900 text-white px-4 py-2 rounded-xl hover:bg-pink-950 transition duration-300">
               Proof
             </button>
@@ -331,9 +357,9 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       {showSpinError && spinError && (
         <div
           onClick={() => setShowSpinError(false)}
-          className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100 bg-opacity-65 p-4"
+          className="fixed inset-0 flex items-center justify-center z-50 bg-[#1a0e25] bg-opacity-95 p-4"
         >
-          <div className="w-full max-w-[384px] bg-yellow-600 rounded-lg p-6 shadow-lg">
+          <div className="w-full max-w-[384px] bg-[#341e49] rounded-lg p-6 shadow-lg">
             <p className="text-center text-white">
               Error: {(spinError as BaseError).shortMessage || spinError.message}
             </p>
@@ -345,9 +371,9 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       {showBuyTickerResult && (
         <div
           onClick={() => setShowBuyTicketResult(false)}
-          className="fixed inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-[#1a0e25] bg-opacity-95 flex items-center justify-center z-50 p-4"
         >
-          <div className="w-full max-w-[384px] bg-yellow-600 rounded-2xl p-6 shadow-lg">
+          <div className="w-full max-w-[384px] bg-[#341e49] rounded-2xl p-6 shadow-lg">
             <p className="text-white text-center text-2xl mb-6">
               Hi {displayName}, You got {playerSpin?.[2]}X extra spin and 100% cashback in $LUCKY token has been sent to
               your wallet.
@@ -363,9 +389,9 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       {showBuyTicketError && buyTicketError && (
         <div
           onClick={() => setShowBuyTicketError(false)}
-          className="fixed inset-0 flex items-center justify-center z-50 bg-gray-100 bg-opacity-65 p-4"
+          className="fixed inset-0 flex items-center justify-center z-50 bg-[#1a0e25] bg-opacity-95 p-4"
         >
-          <div className="w-full max-w-[384px] bg-yellow-600 rounded-lg p-6 shadow-lg">
+          <div className="w-full max-w-[384px] bg-[#341e49] rounded-lg p-6 shadow-lg">
             <p className="text-center text-white">
               Error: {(buyTicketError as BaseError).shortMessage || buyTicketError.message}
             </p>
