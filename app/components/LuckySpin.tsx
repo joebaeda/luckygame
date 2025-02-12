@@ -2,12 +2,13 @@
 
 import { luckyAbi, luckyAddress } from "@/lib/luckySlot"
 import { useCallback, useEffect, useState } from "react"
-import { type BaseError, useAccount, useChainId, useReadContract, useWriteContract } from "wagmi"
+import { type BaseError, useAccount, useChainId, useConnect, useReadContract, useWriteContract } from "wagmi"
 import { base } from "wagmi/chains"
 import Image from "next/image"
 import sdk from "@farcaster/frame-sdk"
 import { formatEther } from "viem"
 import StirringBalls from "./StirringBalls"
+import { wagmiConfig } from "@/lib/wagmiConfig"
 
 const symbolMap: Record<number, string> = {
   0: "🍌",
@@ -38,6 +39,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   const [showBuyTickerResult, setShowBuyTicketResult] = useState(false)
   const [showBuyTicketError, setShowBuyTicketError] = useState(false)
   const [calculatedValue, setCalculatedValue] = useState<string | null>(null)
+  const [canSpin, setCanSpin] = useState(false);
 
   const showProfile = useCallback(() => {
     sdk.actions.viewProfile({ fid })
@@ -51,6 +53,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   // wagmi hooks
   const chainId = useChainId()
   const { address, isConnected } = useAccount()
+  const { connect } = useConnect()
   const {
     data: spinHash,
     error: spinError,
@@ -93,6 +96,21 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
     functionName: "getPlayerSpins",
     args: [address as `0x${string}`],
   })
+
+  useEffect(() => {
+    if (playerSpin) {
+
+      // Logic to determine if the spin button should be enabled
+      const currentDay = Math.floor(Date.now() / (1000 * 60 * 60 * 24)); // Unix timestamp in days
+
+      const canSpinToday =
+        BigInt(currentDay) !== playerSpin[0]; // New day or under limit
+      const hasExtraSpins = playerSpin[2] > 0;
+
+      // Update canSpin state
+      setCanSpin(canSpinToday || hasExtraSpins);
+    }
+  }, [freeSpin, playerSpin]);
 
   // Function to start the spin
   const spin = async () => {
@@ -296,10 +314,10 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       {/* Player Spin */}
       <div className="fixed p-4 bottom-28 w-full space-y-2 flex flex-col justify-start items-start text-white text-xl font-extrabold">
         <p className="flex justify-between w-full">
-          Daily Spin: <span>{String(playerSpin?.[1] || 0) || "0"} / {freeSpin}</span>
+          Daily Spin: <span>{String(playerSpin?.[1] || 0) || "0"}</span>
         </p>
         <p className="flex justify-between w-full">
-          Extra Spin: <span>{String(playerSpin?.[2] || 0) || "0"} / {freeSpin}</span>
+          Extra Spin: <span>{String(playerSpin?.[2] || 0) || "0"}</span>
         </p>
         <p className="flex justify-between w-full">
           Prize Pool: <span>{String(calculatedValue || "0")}</span>
@@ -308,13 +326,21 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
       {/* Spin Button */}
       <div className="fixed rounded-t-2xl flex justify-center items-center p-4 w-full bottom-0 bg-yellow-600">
-        <button
-          onClick={spin}
-          disabled={!isConnected || chainId !== base.id || spinning || String(playerSpin?.[1]) === String(freeSpin) || String(playerSpin?.[1]) === String(freeSpin) && String(playerSpin?.[2]) === "0"}
-          className="text-white text-center font-extrabold py-2 text-2xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {spinning ? "Spinning..." : "Let's Spin"}
-        </button>
+        {isConnected ? (
+          <button
+            onClick={spin}
+            disabled={!isConnected || !canSpin || chainId !== base.id || spinning}
+            className="text-white text-center font-extrabold py-2 text-2xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {spinning ? "Spinning..." : "Let's Spin"}
+          </button>
+        ) : (
+          <button
+            className="text-white text-center font-extrabold py-2 text-2xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => connect({ connector: wagmiConfig.connectors[0] })}>
+            Connect to Base
+          </button>
+        )}
       </div>
 
       {/* Spin Result */}
