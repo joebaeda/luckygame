@@ -10,7 +10,7 @@ import { formatEther } from "viem"
 import StirringBalls from "./StirringBalls"
 
 const symbolMap: Record<number, string> = {
-  0: "🍎",
+  0: "🍌",
   1: "🍋",
   2: "🍒",
   3: "🍇",
@@ -19,7 +19,7 @@ const symbolMap: Record<number, string> = {
   6: "🍓",
   7: "🍑",
   8: "🥒",
-  9: "🍆",
+  9: "🍎",
 }
 const symbolArray = Object.values(symbolMap)
 
@@ -30,7 +30,7 @@ interface ProfileProps {
 }
 
 export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
-  const [reels, setReels] = useState<string[]>(Array(4).fill(symbolArray[9]))
+  const [reels, setReels] = useState<string[]>(Array(4).fill(symbolArray[0]))
   const [spinning, setSpinning] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [showSpinResult, setShowSpinResult] = useState(false)
@@ -169,7 +169,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   // Set back to default
   useEffect(() => {
     if (showSpinResult === false) {
-      setReels(Array(4).fill(symbolArray[9]))
+      setReels(Array(4).fill(symbolArray[0]))
     }
   }, [showSpinResult])
 
@@ -296,10 +296,10 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       {/* Player Spin */}
       <div className="fixed p-4 bottom-28 w-full space-y-2 flex flex-col justify-start items-start text-white text-xl font-extrabold">
         <p className="flex justify-between w-full">
-          Daily Spin: <span>{String(playerSpin?.[1]) || "0"} / {freeSpin}</span>
+          Daily Spin: <span>{String(playerSpin?.[1] || 0) || "0"} / {freeSpin}</span>
         </p>
         <p className="flex justify-between w-full">
-          Extra Spin: <span>{String(playerSpin?.[2]) || "0"} / {freeSpin}</span>
+          Extra Spin: <span>{String(playerSpin?.[2] || 0) || "0"} / {freeSpin}</span>
         </p>
         <p className="flex justify-between w-full">
           Prize Pool: <span>{String(calculatedValue || "0")}</span>
