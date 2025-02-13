@@ -125,19 +125,24 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   // Function to start the spin
   const spin = async () => {
-    setSpinning(true)
-    setResult(null)
+    if (chainId === base.id) {
+      setSpinning(true)
+      setResult(null)
 
-    try {
-      writeSpin({
-        abi: luckyAbi,
-        address: luckyAddress,
-        functionName: "spin",
-      })
+      try {
+        writeSpin({
+          abi: luckyAbi,
+          chainId: base.id,
+          address: luckyAddress,
+          functionName: "spin",
+        })
 
-    } catch (error) {
-      console.error("Error spinning:", error)
-      setSpinning(false); // Stop spinning if transaction fails
+      } catch (error) {
+        console.error("Error spinning:", error)
+        setSpinning(false); // Stop spinning if transaction fails
+      }
+    } else {
+      switchChain({ chainId: base.id })
     }
   }
 
@@ -203,16 +208,21 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   // Function to buy extra spin
   const buyExtraSpin = async () => {
-    try {
-      writeBuyTicket({
-        abi: luckyAbi,
-        address: luckyAddress,
-        functionName: "buyExtraSpins",
-        value: price,
-        args: [address as `0x${string}`],
-      })
-    } catch (error) {
-      console.error("Error buying extra spin:", error)
+    if (chainId === base.id) {
+      try {
+        writeBuyTicket({
+          abi: luckyAbi,
+          chainId: base.id,
+          address: luckyAddress,
+          functionName: "buyExtraSpins",
+          value: price,
+          args: [address as `0x${string}`],
+        })
+      } catch (error) {
+        console.error("Error buying extra spin:", error)
+      }
+    } else {
+      switchChain({ chainId: base.id })
     }
   }
 
