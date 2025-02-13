@@ -123,7 +123,6 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   // Function to start the spin
   const spin = async () => {
-    if (!isConnected || chainId !== base.id) return
     setSpinning(true)
     setResult(null)
 
@@ -203,8 +202,6 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   // Function to buy extra spin
   const buyExtraSpin = async () => {
-    if (!isConnected || chainId !== base.id) return
-
     try {
       writeBuyTicket({
         abi: luckyAbi,
