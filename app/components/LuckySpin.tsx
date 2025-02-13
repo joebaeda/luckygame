@@ -131,7 +131,6 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
     try {
       writeSpin({
         abi: luckyAbi,
-        chainId: base.id,
         address: luckyAddress,
         functionName: "spin",
       })
@@ -207,7 +206,6 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
     try {
       writeBuyTicket({
         abi: luckyAbi,
-        chainId: base.id,
         address: luckyAddress,
         functionName: "buyExtraSpins",
         value: price,
