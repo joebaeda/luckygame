@@ -86,7 +86,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
     functionName: "ticketPrice",
   })
 
-  const { data: playerSpin } = useReadContract({
+  const { data: playerSpin, refetch } = useReadContract({
     address: luckyAddress,
     abi: luckyAbi,
     chainId: base.id,
@@ -110,13 +110,16 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       const lastSpinDay = playerSpin[0]; // Assuming playerSpin[0] is the last spin day (BigInt)
       const extraSpinsAvailable = playerSpin[2]; // Assuming playerSpin[2] is the number of extra spins
 
-      const canSpinToday = BigInt(currentDay) > lastSpinDay; // New day since last spin
+      const currentPlayCount = parseInt(localStorage.getItem(`${address}_play`) || "0", 10);
+
+      const canSpinToday = BigInt(currentDay) > lastSpinDay  && currentPlayCount < 3; // New day since last spin
+      console.log(`${BigInt(currentDay)} == ${lastSpinDay}`)
       const hasExtraSpins = extraSpinsAvailable > 0; // Extra spins available
 
       // Update the state to enable/disable the spin button
       setCanSpin(canSpinToday || hasExtraSpins);
     }
-  }, [playerSpin]);
+  }, [address, playerSpin]);
 
 
   // Function to start the spin
@@ -187,6 +190,11 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
         setReels(newSpinData.numbers.map((num: number) => symbolMap[num]));
         setResult(newSpinData.isWinner ? "🎉 Jackpot! 🎉" : "🍀 Try again! 🍀");
         setShowSpinResult(true);
+        // Retrieve the current play count from localStorage
+      const currentPlayCount = parseInt(localStorage.getItem(`${address}_play`) || "0", 10);
+
+      // Increment the play count and save it back to localStorage
+      localStorage.setItem(`${address}_play`, String(currentPlayCount + 1));
 
       }
     };
@@ -198,8 +206,9 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   useEffect(() => {
     if (showSpinResult === false) {
       setReels(Array(4).fill(symbolArray[0]))
+      refetch()
     }
-  }, [showSpinResult])
+  }, [refetch, showSpinResult])
 
 
   // Function to buy extra spin
