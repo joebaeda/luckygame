@@ -2,7 +2,7 @@
 
 import { luckyAbi, luckyAddress } from "@/lib/luckySlot"
 import { useCallback, useEffect, useState } from "react"
-import { type BaseError, useAccount, useChainId, useConnect, useReadContract, useWriteContract } from "wagmi"
+import { type BaseError, useAccount, useChainId, useConnect, useReadContract, useSwitchChain, useWriteContract } from "wagmi"
 import { base } from "wagmi/chains"
 import Image from "next/image"
 import sdk from "@farcaster/frame-sdk"
@@ -40,6 +40,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   const [showBuyTicketError, setShowBuyTicketError] = useState(false)
   const [calculatedValue, setCalculatedValue] = useState<string | null>(null)
   const [canSpin, setCanSpin] = useState(false);
+  const [isWrongNetwork, setIsWrongNetwork] = useState(false)
 
   const showProfile = useCallback(() => {
     sdk.actions.viewProfile({ fid })
@@ -52,6 +53,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   // wagmi hooks
   const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
   const { address, isConnected } = useAccount()
   const { connect } = useConnect()
   const {
@@ -96,6 +98,13 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
     functionName: "getPlayerSpins",
     args: [address as `0x${string}`],
   })
+
+  // Must be connected to Base chain
+  useEffect(() => {
+    if (chainId !== base.id) {
+      setIsWrongNetwork(true)
+    }
+  }, [chainId])
 
   useEffect(() => {
     if (playerSpin) {
@@ -334,11 +343,17 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
           >
             {spinning ? "Spinning..." : "Let's Spin"}
           </button>
+        ) : isWrongNetwork ? (
+          <button
+            className="text-white text-center font-extrabold py-2 text-2xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => switchChain({ chainId: base.id })}>
+            Switch to Base
+          </button>
         ) : (
           <button
             className="text-white text-center font-extrabold py-2 text-2xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => connect({ connector: wagmiConfig.connectors[0] })}>
-            Connect to Base
+            Sig In
           </button>
         )}
       </div>
