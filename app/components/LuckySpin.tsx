@@ -86,13 +86,6 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
     functionName: "ticketPrice",
   })
 
-  const { data: freeSpin } = useReadContract({
-    address: luckyAddress,
-    abi: luckyAbi,
-    chainId: base.id,
-    functionName: "freeSpinPerDay",
-  })
-
   const { data: playerSpin } = useReadContract({
     address: luckyAddress,
     abi: luckyAbi,
@@ -110,18 +103,21 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   useEffect(() => {
     if (playerSpin) {
+      // Calculate the current day as a Unix timestamp in days
+      const currentDay = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
 
-      // Logic to determine if the spin button should be enabled
-      const currentDay = Math.floor(Date.now() / (1000 * 60 * 60 * 24)); // Unix timestamp in days
+      // Determine if the player can spin today
+      const lastSpinDay = playerSpin[0]; // Assuming playerSpin[0] is the last spin day (BigInt)
+      const extraSpinsAvailable = playerSpin[2]; // Assuming playerSpin[2] is the number of extra spins
 
-      const canSpinToday =
-        BigInt(currentDay) > playerSpin[0]; // New day or under limit
-      const hasExtraSpins = playerSpin[2] > 0;
+      const canSpinToday = BigInt(currentDay) > lastSpinDay; // New day since last spin
+      const hasExtraSpins = extraSpinsAvailable > 0; // Extra spins available
 
-      // Update canSpin state
+      // Update the state to enable/disable the spin button
       setCanSpin(canSpinToday || hasExtraSpins);
     }
-  }, [freeSpin, playerSpin]);
+  }, [playerSpin]);
+
 
   // Function to start the spin
   const spin = async () => {
