@@ -2,7 +2,7 @@
 
 import { luckyAbi, luckyAddress } from "@/lib/luckySlot"
 import { useCallback, useEffect, useState } from "react"
-import { type BaseError, useAccount, useChainId, useConnect, useReadContract, useSwitchChain, useWriteContract } from "wagmi"
+import { type BaseError, useAccount, useChainId, useConnect, useReadContract, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi"
 import { base } from "wagmi/chains"
 import Image from "next/image"
 import sdk from "@farcaster/frame-sdk"
@@ -59,16 +59,18 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   const {
     data: spinHash,
     error: spinError,
-    isSuccess: isSpinConfirmed,
+    isPending: isSpinPending,
     writeContract: writeSpin
   } = useWriteContract()
   const {
     data: buyTicketHash,
     error: buyTicketError,
-    isPending: isBuyTicketConfirming,
-    isSuccess: isBuyTicketConfirmed,
+    isPending: isBuyTicketPending,
     writeContract: writeBuyTicket,
   } = useWriteContract()
+
+  const { isLoading: isSpinConfirming, isSuccess: isSpinConfirmed } = useWaitForTransactionReceipt({ hash: spinHash });
+  const { isLoading: isBuyTicketConfirming, isSuccess: isBuyTicketConfirmed } = useWaitForTransactionReceipt({ hash: buyTicketHash });
 
   const { data: totalPrizePool } = useReadContract({
     address: luckyAddress,
@@ -278,10 +280,10 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       <div className="fixed w-full flex flex-row rounded-b-2xl justify-between items-center p-4 top-0 bg-yellow-500">
         <button
           onClick={buyExtraSpin}
-          disabled={!isConnected || chainId !== base.id || isBuyTicketConfirming}
+          disabled={!isConnected || chainId !== base.id || isBuyTicketConfirming || isBuyTicketPending}
           className="bg-[#5e4a9d] rounded-2xl text-white font-extrabold p-3 text-xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isBuyTicketConfirming ? "Confirming..." : "Buy Ticket"}
+          {isBuyTicketPending ? "Confirming..." : isBuyTicketConfirming ? "Waiting..." : "Buy Ticket"}
         </button>
         <button onClick={showProfile} className="flex text-white flex-row justify-between items-center gap-2">
           <p className="text-2xl font-extrabold">{displayName}</p>
@@ -335,10 +337,10 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
         {isConnected ? (
           <button
             onClick={spin}
-            disabled={!isConnected || !canSpin || chainId !== base.id || spinning}
+            disabled={!isConnected || !canSpin || chainId !== base.id || spinning || isSpinConfirming || isSpinPending}
             className="text-white text-center font-extrabold py-2 text-2xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {spinning ? "Spinning..." : "Let's Spin"}
+            {isSpinPending ? "Confirming..." : isSpinConfirming ? "Waiting..." : spinning ? "Spinning..." : "Let's Spin"}
           </button>
         ) : isWrongNetwork ? (
           <button
