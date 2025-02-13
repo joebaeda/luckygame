@@ -115,7 +115,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       const currentDay = Math.floor(Date.now() / (1000 * 60 * 60 * 24)); // Unix timestamp in days
 
       const canSpinToday =
-        BigInt(currentDay) !== playerSpin[0]; // New day or under limit
+        BigInt(currentDay) > playerSpin[0]; // New day or under limit
       const hasExtraSpins = playerSpin[2] > 0;
 
       // Update canSpin state
