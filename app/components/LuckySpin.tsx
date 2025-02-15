@@ -414,10 +414,10 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
       {/* Spin Button */}
       <div className="fixed rounded-t-2xl flex justify-center items-center p-4 w-full bottom-0 bg-yellow-600">
-        {isConnected ? (
+        {isConnected && chainId === base.id ? (
           <button
             onClick={spin}
-            disabled={!isConnected || !canSpin || chainId !== base.id || spinning || isSpinConfirming || isSpinPending}
+            disabled={!isConnected ||isConnected && chainId !== base.id || !canSpin || spinning || isSpinConfirming || isSpinPending}
             className="text-white text-center font-extrabold py-2 text-2xl transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSpinPending ? "Confirming..." : isSpinConfirming ? "Waiting..." : spinning ? "Spinning..." : "Let's Spin"}
