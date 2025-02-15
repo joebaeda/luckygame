@@ -12,7 +12,7 @@ import { base } from "wagmi/chains";
 export default function Page() {
   const [showAddFrameModal, setShowAddFrameModal] = useState(false)
   const [isZeroLuckyBalance, setIsZeroLuckyBalance] = useState(false)
-  const { fid, displayName, pfpUrl, added } = useViewer();
+  const { fid, displayName, pfpUrl, added } = useViewer()
 
   // Wagmi hook
   const { address } = useAccount();

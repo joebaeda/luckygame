@@ -9,6 +9,7 @@ import sdk from "@farcaster/frame-sdk"
 import { formatEther } from "viem"
 import StirringBalls from "./StirringBalls"
 import { wagmiConfig } from "@/lib/wagmiConfig"
+import { Howl } from "howler"
 
 const symbolMap: Record<number, string> = {
   0: "🍌",
@@ -30,8 +31,31 @@ interface ProfileProps {
   pfp: string
 }
 
+// Sound files (place these in the "public/sounds" directory)
+const backgroundSound = new Howl({
+  src: ["/sounds/backsound.mp3"],
+  loop: true,
+  volume: 0.5,
+});
+
+const spinSound = new Howl({
+  src: ["/sounds/spin.mp3"],
+  loop: true,
+  volume: 0.7,
+});
+
+const winResultSound = new Howl({
+  src: ["/sounds/win-result.mp3"],
+  volume: 1,
+});
+
+const losesResultSound = new Howl({
+  src: ["/sounds/loses-result.mp3"],
+  volume: 1,
+});
+
 export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
-  const [reels, setReels] = useState<string[]>(Array(4).fill(symbolArray[0]))
+  const [reels, setReels] = useState<string[]>(Array(4).fill("❓"))
   const [spinning, setSpinning] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [showSpinResult, setShowSpinResult] = useState(false)
@@ -41,6 +65,46 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   const [calculatedValue, setCalculatedValue] = useState<string | null>(null)
   const [canSpin, setCanSpin] = useState(false);
   const [isWrongNetwork, setIsWrongNetwork] = useState(false)
+  const [showOverlay, setShowOverlay] = useState(true)
+
+  // Overlay Button
+  const handleOpenGame = () => {
+    setShowOverlay(false);
+  };
+
+  // Handle background sound lifecycle
+  useEffect(() => {
+    if (!spinning && !showSpinResult) {
+      backgroundSound.play(); // Play background sound when the app starts
+    }
+
+    return () => {
+      backgroundSound.stop(); // Stop background sound when component unmounts
+    };
+  }, [spinning, showSpinResult]);
+
+  // Handle spin sound lifecycle
+  useEffect(() => {
+    if (spinning) {
+      backgroundSound.stop(); // Stop background sound
+      spinSound.play(); // Start spinning sound
+    } else {
+      spinSound.stop(); // Stop spinning sound when spin ends
+    }
+  }, [spinning]);
+
+  // Handle result sound lifecycle
+  useEffect(() => {
+    if (showSpinResult && result === "🎉 Jackpot! 🎉") {
+      spinSound.stop(); // Stop spinning sound
+      winResultSound.play(); // Play Win result sound
+    }
+
+    if (showSpinResult && result === "🍀 Try again! 🍀") {
+      spinSound.stop(); // Stop spinning sound
+      losesResultSound.play(); // Play Loses result sound
+    }
+  }, [result, showSpinResult]);
 
   const showProfile = useCallback(() => {
     sdk.actions.viewProfile({ fid })
@@ -110,9 +174,9 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
       const lastSpinDay = playerSpin[0]; // Assuming playerSpin[0] is the last spin day (BigInt)
       const extraSpinsAvailable = playerSpin[2]; // Assuming playerSpin[2] is the number of extra spins
 
-      const currentPlayCount = parseInt(localStorage.getItem(`${address}_play`) || "0", 10);
+      const currentPlayCount = parseInt(localStorage.getItem(`${currentDay}_play`) || "0", 10);
 
-      const canSpinToday = BigInt(currentDay) > lastSpinDay  && currentPlayCount < 3; // New day since last spin
+      const canSpinToday = BigInt(currentDay) >= lastSpinDay && currentPlayCount < 3; // New day since last spin
       console.log(`${BigInt(currentDay)} == ${lastSpinDay}`)
       const hasExtraSpins = extraSpinsAvailable > 0; // Extra spins available
 
@@ -176,6 +240,9 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
 
   // Get Result
   useEffect(() => {
+    // Calculate the current day as a Unix timestamp in days
+    const currentDay = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+    
     const getNewSpinData = async () => {
       if (!isSpinConfirmed || !address) return;
 
@@ -190,13 +257,13 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
         setReels(newSpinData.numbers.map((num: number) => symbolMap[num]));
         setResult(newSpinData.isWinner ? "🎉 Jackpot! 🎉" : "🍀 Try again! 🍀");
         setShowSpinResult(true);
-        // Retrieve the current play count from localStorage
-      const currentPlayCount = parseInt(localStorage.getItem(`${address}_play`) || "0", 10);
 
-      // Increment the play count and save it back to localStorage
-      localStorage.setItem(`${address}_play`, String(currentPlayCount + 1));
+        // Increment play count
+        const currentPlayCount = parseInt(localStorage.getItem(`${currentDay}_play`) || "0", 10);
+        localStorage.setItem(`${currentDay}_play`, String(currentPlayCount + 1));
 
       }
+
     };
 
     getNewSpinData();
@@ -205,7 +272,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
   // Set back to default
   useEffect(() => {
     if (showSpinResult === false) {
-      setReels(Array(4).fill(symbolArray[0]))
+      setReels(Array(4).fill("❓"))
       refetch()
     }
   }, [refetch, showSpinResult])
@@ -428,7 +495,7 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
         >
           <div className="w-full max-w-[384px] bg-[#341e49] rounded-2xl p-6 shadow-lg">
             <p className="text-white text-center text-2xl mb-6">
-              Hi {displayName}, You got {playerSpin?.[2]}X extra spin and 100% cashback in $LUCKY token has been sent to
+              Hi {displayName}, You got {String(playerSpin?.[2] || 0)}X extra spin and 100% cashback in $LUCKY token has been sent to
               your wallet.
             </p>
             <button onClick={() => openBaseScan(buyTicketHash)} className="w-full bg-pink-900 text-white px-4 py-2 rounded-xl hover:bg-pink-950 transition duration-300">
@@ -451,6 +518,31 @@ export default function LuckySpin({ fid, displayName, pfp }: ProfileProps) {
           </div>
         </div>
       )}
+
+      {showOverlay &&
+        <div className="fixed p-4 inset-0 bg-[#1a0e25] bg-opacity-95 flex items-center justify-center z-50">
+          <div className="w-full flex flex-col justify-center items-center max-w-[384px] bg-[#341e49] rounded-2xl p-6 shadow-lg">
+            <Image
+              className="w-40 h-40 -mt-24 object-cover rounded-full"
+              src={pfp || "/placeholder.svg"}
+              alt={displayName}
+              width={100}
+              height={100}
+              priority
+            />
+            <p className="text-white my-6">
+              Hi <span className="font-bold text-yellow-500">{displayName}</span> 👋, Are you ready to play the LUCKY Game? This game is free without placing a bet and if you get the Jackpot &quot;🍌🍌🍌🍌&quot;, then you are the winner and the prize will be automatically sent to your wallet.
+            </p>
+            <button
+              className="w-full bg-pink-900 text-white px-4 py-2 rounded-xl hover:bg-pink-950"
+              onClick={handleOpenGame}
+            >
+              I&apos;am Ready!
+            </button>
+          </div>
+        </div>
+      }
+
     </div>
   )
 }
